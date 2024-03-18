@@ -1,0 +1,66 @@
+version: '3'
+services:
+    db:
+        container_name: omg_db
+        image: mysql:latest
+        restart: always
+        volumes:
+            - db:/var/lib/mysql
+            - .docker/mysql/my.cfg:/etc/mysql/my.cnf
+        environment:
+            MYSQL_DATABASE: omg_mysql
+            MYSQL_ROOT_PASSWORD: root
+        ports:
+            - "3306:3306"
+        command: mysqld --character-set-server=utf8 --collation-server=utf8_unicode_ci
+
+    app:
+        container_name: omg_app
+        build:
+            context: .
+            dockerfile: .docker/php/Dockerfile
+        environment:
+            PHP_IDE_CONFIG: serverName=omg
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        depends_on:
+            - db
+        volumes:
+            - ../:/var/www
+        ports:
+            - "9003:9003"
+    nginx:
+        image: nginx:latest
+        build:
+            context: .
+            dockerfile: .docker/nginx.dev/Dockerfile.prod
+        ports:
+            - "80:80"
+        links:
+            - app
+        volumes:
+            - ./:/var/www/omg_project
+            - .docker/nginx.dev/conf.d:/etc/nginx/conf.d
+    redis:
+        container_name: omg_redis
+        build:
+            context: .docker/redis
+        restart: unless-stopped
+        ports:
+            - "6379:6379"
+        volumes:
+            - redis:/data
+    phpmyadmin:
+        image: linuxserver/phpmyadmin
+        links:
+            - db
+        ports:
+            - 8080:80
+        environment:
+            MYSQL_USERNAME: "root"
+            MYSQL_ROOT_PASSWORD: "root"
+volumes:
+    db:
+    app:
+    redis:
+    nginx:
